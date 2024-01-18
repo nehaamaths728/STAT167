@@ -1,4 +1,4 @@
-# STAT167 Team ANHJA: Final Project Report on Climate Change.
+# STAT167 Team ANHJA: Final Project Report on Climate Change
 Anushka Pandya, Neha Mathews, Haijun Xi, Akash Alamuthu, Jeric Pascua
 
 Introduction
