@@ -1,0 +1,426 @@
+---
+title: "Team ANHJA: Final Project Report on Climate Change."
+author: "Anushka Pandya, Neha Mathews, Haijun Xi, Akash Alamuthu, Jeric Pascua"
+date: "2023-06-09"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(ggplot2)
+library(ggdendro)
+library(tidyverse)
+library(boot)
+```
+
+## Introduction
+For our project we wanted to investigate mainly the relationship between temperature change and environmental factors. Our goal was to find out if changes in global temperature in recent years are natural or are affected by human behavior. We are interested in this because global warming has become a serious issue in recent years and we want to determine if we should be concerned with sudden changes in temperature. 
+
+### Project Description
+#### Dataset  
+\hfill
+To conduct our research we used the "Jena Climate" dataset from Kaggle. The data is a weather time series dataset recorded at the Weather Station of the Max Planck Institute for Biogeochemistry in Jena, Germany. We did some data cleaning of the dataset by changing column names to make it easier for ourselves to navigate the data. The dataset comprises a wide variety of meteorological variables such as atmospheric pressure, humidity, wind speed, wind direction, and more. We found that this dataset was appropriate for our research as it is very large, containing 420,551 observations, with each observation recorded within a ten minute time interval. This data is also fairly recent as each observation was taken from the start of 2009 all the way to the end of 2016 therefore, the conclusions we were able to draw from this data are reliable and can be related to the current global climate. We assume that this dataset provides an accurate representation of temperature and climate globally; however, we understand that the location of the weather station may not be directly representative of conditions in other areas. 
+
+#### Objectives
+\hfill
+Our objective is to answer our main research question as well as these sub questions:
+
+1. Which environmental factor impacts the correlation between temperature and other environmental factors?
+
+2. Is there a relationship between temperature and air density?
+
+3. How does the number of predictors of environmental factors impact overall performance of our response variable temperature?
+
+4. What factors can we use to predict wind-speed?
+
+#### Preview of dataset
+```{r, echo=FALSE}
+climate <- read.csv("~/Desktop/jena_climate_2009_2016.csv")
+head(climate)
+```
+
+#### Data Cleaning  
+\hfill
+The dataset is relatively clean, after checking we found there are no missing values that occur in each obbservation. However, we indicated that the variable name is complex and confused for people viewing the data. Therefore, we decided to change the column name of the dataset to more clean and easier to interpret format. We have also dropped the unnecessary columns such as “Date.Time” (a categorical variable) that does not contribute to our predicting method. 
+
+
+Below is the cleaned version of our dataset.
+```{r, echo=FALSE}
+colnames(climate)[colnames(climate) == "Date.Time"] <- "data_Time"
+colnames(climate)[colnames(climate) == "p..mbar."] <- "pressure_Pascal"
+colnames(climate)[colnames(climate) == "T..degC."] <- "Celsius"
+colnames(climate)[colnames(climate) == "Tpot..K."] <- "Kelvin"
+colnames(climate)[colnames(climate) == "Tdew..degC."] <- "Dew_Celsius"
+colnames(climate)[colnames(climate) == "rh...."] <- "RelativeHumidity"
+colnames(climate)[colnames(climate) == "VPmax..mbar."] <- "Saturation_vapor_pressure"
+colnames(climate)[colnames(climate) == "VPact..mbar."] <- "Vapor_pressure"
+colnames(climate)[colnames(climate) == "VPdef..mbar."] <- "Vapor_pressure_deficit"
+colnames(climate)[colnames(climate) == "sh..g.kg."] <- "Specific_humidity"
+colnames(climate)[colnames(climate) == "H2OC..mmol.mol."] <- "Water_vapor_concentration"
+colnames(climate)[colnames(climate) == "rho..g.m..3."] <- "air_density"
+colnames(climate)[colnames(climate) == "wv..m.s."] <- "Wind_speed"
+colnames(climate)[colnames(climate) == "max..wv..m.s."] <- "Maximum_wind_speed"
+colnames(climate)[colnames(climate) == "wd..deg."] <- "Wind_direction"
+
+climate <- climate %>% mutate_if(~all(complete.cases(.)), na.omit)
+glimpse(climate)
+```
+
+#### Identify Response and Predictor Variables
+\hfill
+###### Response Variable: Celsius
+###### Predictor: All other enviromental factor in dataset
+
+## Data exploration and visualization
+#### Visualization
+\hfill
+**This is a Visual of Density and Temperature in Celsius. As you can see there seems to be a strong negative correlation between the variables air density and the temperature in Celsius**
+```{r, echo=FALSE}
+ggplot(data = climate) +
+  geom_point(aes(x = Celsius, y = air_density),
+             color = "pink", size = 0.5,shape = 16,alpha = 0.5)+
+  ggtitle("Air Density vs Temperature in Celsius")+
+  labs(x = "Temperature in Celsius ", y = "Density")
+```
+
+**Let's look at the relationship with temperature and the other factors. First lets look at temperature versus humidity. As you can see there is a negative relationship relationship**
+
+```{r, echo=FALSE}
+ggplot(data = climate) +
+  geom_point(aes(x = Celsius, y = RelativeHumidity),
+             color = "darkred", size = 0.5,shape = 8,alpha = 0.5)+
+  ggtitle("Relative Humidity vs Temperature in Celsius")+
+  labs(x = "Temperature in Celsius ", y = "Relative Humidity")
+```
+
+**Let's look at temperature versus Vapor Pressure As you can see there is a positive relationship**
+```{r, echo=FALSE}
+ggplot(data = climate) +
+  geom_point(aes(x = Celsius, y = Vapor_pressure),
+             color = "blue", size = 0.5,shape = 10,alpha = 0.5)+
+  ggtitle("Vapor Pressure vs Temperature in Celsius")+
+  labs(x = "Temperature in Celsius ", y = "Vapor Pressure")
+```
+
+**Let's look at temperature versus Wind Speed. As you can see there is no relationship**
+```{r, echo=FALSE}
+plot <- ggplot(data = climate) +
+  geom_point(aes(x = Celsius, y = Wind_speed),
+             color = "darkgreen", size = 0.5,shape = 2,alpha = 0.5)+
+  ggtitle("Wind Speed vs Temperature in Celsius")+
+  labs(x = "Temperature in Celsius ", y = "Wind Speed")
+plot + coord_cartesian(ylim = c(0, 20))
+```
+
+**Let's look at temperature versus Wind Direction As you can see there is no relationship**
+```{r, echo=FALSE}
+ggplot(data = climate) +
+  geom_point(aes(x = Celsius, y = Wind_direction),
+             color = "black", size = 0.5,shape = 4,alpha = 0.5)+
+  ggtitle("Wind Direction vs Temperature in Celsius")+
+  labs(x = "Temperature in Celsius ", y = "Wind Direction")
+```
+
+**Let's look at temperature versus pressure. As you can see there is no relationship**
+```{r, echo=FALSE}
+ ggplot(data = climate) +
+  geom_point(aes(x = Celsius, y = pressure_Pascal),
+             color = "darkgreen", size = 0.5,shape = 6,alpha = 0.5)+
+  ggtitle("Pressure vs Temperature in Celsius")+
+  labs(x = "Temperature in Celsius ", y = "Pressure")
+```
+
+
+
+We can further look into the relationship between these factors by using the correlation function. Based on the results we can say that there is a strong negative relationship between density and temperature. There is a moderate negative relationship between Relative Humidity and Temperature in Celsius. A strong positive relationship between Vapor Pressure and Temperature in Celcius. There does not seem to be a relationship between Wind Speed and Temperature in Celsius or Wind Direction and Temperature in Celcius,or Pressure and Temperature in Celsius since the correlation value is very close to zero.Hence our hypothesis is testing the relationship between Density and Temperature in Celsius. We decided it would be interesting to see the relationship between temperature and the other factors hence we conducted this analysis with the visualizations
+```{r}
+#Density and Temperature in Celsius
+cor(climate$Celsius,climate$air_density)
+#Relative Humidity and Temperature in Celsius
+cor(climate$Celsius,climate$RelativeHumidity)
+#Vapor Pressure and Temperature in Celsius
+cor(climate$Celsius,climate$Vapor_pressure)
+#Wind Speed and Temperature in Celsius
+cor(climate$Celsius,climate$Wind_speed)
+#Wind Direction and Temperature in Celsius
+cor(climate$Celsius,climate$Wind_direction)
+#Pressure and Temperature in Celsius
+cor(climate$Celsius,climate$pressure_Pascal)
+```
+
+##### Hierarchical Clustering
+Hierarchical Clustering does not work efficiently on large data sets since it is time/memory consuming to complete the computations. So in order to do Hierarchical Clustering on our data set, I created a data frame that only includes the variables that had a correlation.Since our data set is big I also checked that the new data frame for the clustering only contained data for positive temperatures in Celsius and that air density is no greater than 1284. This new data only includes 36obs with 4 variables.
+```{r}
+climate_clustering <-  climate[, -c(1,2,4,5,7,9,10,11,13,14,15)]
+climate_positiveCelsius <- climate_clustering[climate$Celsius >= 0 & climate$air_density >= 1284, ]
+head(climate_positiveCelsius)
+```
+
+```{r, echo=FALSE}
+hc.single <- hclust(d = dist(climate_positiveCelsius), method = "single")
+ggdendrogram(data = hc.single) +
+  ggtitle("Single Linkage, Climate Data")
+```
+
+##### Grouped Histogram with cut in range of air density
+```{r, echo=FALSE}
+groupdata <- 
+  quantile(climate$air_density, probs = seq(0, 1, by = 0.25))
+groupdata
+
+climate$group <- cut(climate$air_density, breaks = groupdata, labels = c("0-1059.45", "1059.45-1187.49", "1187.49-1242.77", "1242.77-1393.54"))
+
+ggplot(climate, aes(x = Celsius, fill = group)) +
+  geom_histogram(bins = 30)
+```
+
+In this histogram, we have decided our data of air density to fourth equally, and by apply it into histogram of Celsius. we can easily to identify each categories temperature relating in different air density. that we can also the how will air density affect Celsius. in this plot  we could see that each with lower air_density, that Celsius will be higher, it has an inversely relationship.
+
+#### Assumption Check for Model predicting
+\hfill
+##### Histogram
+\hfill
+```{r, echo=FALSE}
+ggplot(climate, aes(x = Celsius)) +
+  geom_histogram(binwidth = 1, fill = "lightgreen", color = "black")+
+  labs(x = "Celsius")
+```
+
+In this histogram, we can see normality to our response variable is followed a normally distributed, to further validate assumption for normality, we will use qq plot and other statistic test to verify.
+
+
+##### QQ-plot
+\hfill
+```{r, echo=FALSE}
+ggplot(data = climate, aes(sample = Celsius))+
+  stat_qq()+
+  stat_qq_line(color = "black")
+```
+
+By looking at the qq plot, we found that most of the data are line on the qq line, however, at the head and tails of the plot. the points has fallen off. That might indicating the violation of normality assumptions to the response variable.
+\hfill
+```{r}
+random5000_Celsius <- climate %>% sample_n(size = 5000, replace = FALSE)
+shapiro.test(random5000_Celsius$Celsius)
+```
+Since Shapiro-Wilk test can only takes maximum of 5000 data in the dataset, we randomly selected of 5000 data out of our dataset in a way to avoid human selection bias. The test has a very small p-value, in which it we reject the null hypothesis, and conclude
+the response variable violates normality assumptions.
+
+## Model Selection and Fitting
+
+#### Model 1 Celsius vs wind_direction and wind_direction related
+
+H0: there is no correlation between wind_direction and its related to Celsius.
+
+HA: there is correlation between wind_direction and its related to Celsius.
+
+During the selection, we have decided to use "generalized linear model" and "normal regression" to compute and fit our dataset. According to our histogram, we have the normality assumption in check to conduct normal regressions. Although we rejected the normality in Shapiro-Wilk test, the data is a small portion of the entire dataset that may not be representative. We also use generalized linear model to the same factors since glm does not need normality assumption, the only need is a wide range of the dataset which is satisfied. 
+
+```{r, echo=FALSE}
+Celsius_Predict_glm <- 
+  glm(Celsius ~ Wind_direction +
+        Wind_direction*air_density + 
+        Wind_direction*pressure_Pascal + 
+        Wind_direction*RelativeHumidity + 
+        Wind_direction*Saturation_vapor_pressure + 
+        Wind_direction*Vapor_pressure+ 
+        Wind_direction*Vapor_pressure_deficit+ 
+        Wind_direction*Specific_humidity+ 
+        Wind_direction*Water_vapor_concentration + 
+        Wind_direction*Wind_speed , data = climate)
+
+summary(Celsius_Predict_glm)
+```
+
+We created a complete predictor model of Wind_direction and its interactions to the response variable of Celsius. We observed the AIC value to be very low, about -1010902. A lower AIC indicates better performance and suggests that our predictor model is a good fit. However, we can still observe insignificant variables that the will contribute negatively to our model. So we will use backward stepwise selection to remove the insignificant one by one. Thus, in this model the insignificant terms are interaction of "Wind_direction:pressure_Pascal", "Wind_direction:Saturation_vapor_pressure", "Wind_direction:Vapor_pressure" and "Wind_direction:Vapor_pressure_deficit".
+
+
+```{r, echo=FALSE}
+Celsius_Predict_nr <-
+  lm(Celsius ~ Wind_direction + Wind_direction*air_density + 
+       Wind_direction*pressure_Pascal + 
+       Wind_direction*RelativeHumidity + 
+       Wind_direction*Saturation_vapor_pressure + 
+       Wind_direction*Vapor_pressure+ 
+       Wind_direction*Vapor_pressure_deficit+ 
+       Wind_direction*Specific_humidity+ 
+       Wind_direction*Water_vapor_concentration + 
+       Wind_direction*Wind_speed , data = climate)
+
+summary(Celsius_Predict_nr)
+```
+
+In the normal regression, we observe the same insignificant terms in the glm. We have discovered a new statistic for R^2 of 0.9999. That means the performance of our model is very good, almost perfect (closer to one means better performance).
+
+
+```{r, echo=FALSE}
+Celsius_Predict_glm_final <- 
+  glm(Celsius ~ 
+        Wind_direction + 
+        Wind_direction*air_density  + 
+        Wind_direction*RelativeHumidity + 
+        Wind_direction*Vapor_pressure+ 
+        Wind_direction*Vapor_pressure_deficit+ 
+        Wind_direction*Specific_humidity+ 
+        Wind_direction*Water_vapor_concentration + 
+        Wind_direction*Wind_speed , data = climate)
+
+summary(Celsius_Predict_glm_final)
+```
+
+By removing the insignificant factors, we found out that the rest of variables are all significant to our predicting; however, the AIC values increased to 853391. We will use this in our comparison later.
+
+
+```{r, echo=FALSE}
+Celsius_windspeed_nr_final <- 
+  lm(Celsius ~ 
+       Wind_direction + 
+       Wind_direction*air_density  + 
+       Wind_direction*RelativeHumidity + 
+       Wind_direction*Vapor_pressure+ 
+       Wind_direction*Vapor_pressure_deficit+ 
+       Wind_direction*Specific_humidity+ 
+       Wind_direction*Water_vapor_concentration + 
+       Wind_direction*Wind_speed , data = climate)
+
+summary(Celsius_windspeed_nr_final)
+```
+
+The R^2 hasn't changed to much as it dropped from 0.9999 to 0.9937 signifying a slightly decreased model performance.
+
+###### Comparison
+
+By comparing both full model and final model to the our predicting variables, we decided to use the full model for wind_direction and its relationship to response variable of Celsius. We compare AIC of -1010902 of full model and 853391 of the final model and with a lower AIC the model performance will be better. In addition, comparing R^2 also supports this decision since full model has 0.9999 compared with final model of 0.9937. We have decided to include those insignificant terms for full models in terms of better performance of the full model. That means pressure related factors are not contributed to overall model performance and that other factors interacted with wind_direction can predict the value accurately for the model we developed.
+
+
+#### Model 2 Celsius vs Air_Density and Air_Density related
+
+```{r, echo=FALSE}
+celsius_air_glm <- glm(Celsius ~ Wind_speed, data = climate)
+summary(celsius_air_glm)
+```
+
+```{r, echo=FALSE}
+celsius_air_nr <- lm(Celsius ~ Wind_speed, data = climate)
+summary(celsius_air_nr)
+```
+We have also developed a predicting model of Celsius vs air density and its interaction using forward stepwise selection this time. Here is the first step of our model and we have a AIC of 2985864 and a R^2 of 2.199e-05 indicating a very bad performance for the first model of glm and lm.
+
+
+```{r, echo=FALSE}
+celsius_air_glm_final <- 
+  glm(Celsius ~ air_density + 
+        Wind_direction*air_density  + 
+        air_density*RelativeHumidity + 
+        air_density*Saturation_vapor_pressure + 
+        air_density*Vapor_pressure+ 
+        air_density*Specific_humidity+ 
+        air_density*Water_vapor_concentration + 
+        air_density*Wind_speed*air_density,data =  climate)
+summary(celsius_air_glm_final)
+```
+
+```{r, echo=FALSE}
+celsius_air_lm_final <- lm(Celsius ~ air_density + Wind_direction*air_density  + 
+air_density*RelativeHumidity + air_density*Saturation_vapor_pressure + air_density*Vapor_pressure+ air_density*Specific_humidity+ air_density*Water_vapor_concentration + air_density*Wind_speed*air_density,data =  climate)
+summary(celsius_air_lm_final)
+```
+After several steps of trying, we got our final models of both glm and lm, that all terms in the models are significant in performing the predicting model. All p values are less than 0.05 of significant level and we have successfully lowered the AIC from 2985864 to - 71107. and increased our R^2 from 2.199e-05 to 0.9993 which is very decent for the performance of the fitted model. 
+
+
+###### Comparison
+
+In model selection, we decided to use final model this time instead of the first model. Since the AIC and R^2 both supports of our decisions of better model performance. we will validate our model in the following sections since we have a very good AIC and R^2. All the factors with interaction to air_density could be use to predict temperature. The overall performance is good when fitting the data.
+
+## Model Evaluation
+
+#### Cross Validations
+
+**Model 1**
+
+```{r, echo=FALSE}
+set.seed(111)
+a2<- glm(Celsius ~ Wind_direction + Wind_direction*air_density  + 
+Wind_direction*RelativeHumidity + Wind_direction*Vapor_pressure+ Wind_direction*Vapor_pressure_deficit+ Wind_direction*Specific_humidity+ Wind_direction*Water_vapor_concentration + Wind_direction*Wind_speed , data = climate) # the full we get from previous section
+
+cv.glm(climate, a2, K = 10)$delta
+```
+In our model 1, we have observed the predicted value of MSE with 0.4454749 and 0.4454720. This indicates the level of them are close to each other, proving the model performance is efficient in predicting our data. Meaning that the model prediction is accurate.
+
+**Model 2**
+
+```{r, echo=FALSE}
+set.seed(111)
+cv.glm(climate, celsius_air_glm_final, K = 10)$delta
+```
+In our model 2, we have also observed the predicted value of both MSE are close to each other with 0.04951794 and 0.04951369. This gives the idea that our model performance is great and that validates the sufficiency of our models.
+
+#### Predicted VS Actual Plot
+\hfill
+```{r, echo=FALSE}
+predict <- predict(a2, newdata = climate)
+climate$predict_wind_direction <- predict
+
+ggplot(data = climate, mapping = aes(x= Celsius, y = predict_wind_direction))+ 
+  geom_point(aes(col = "pink"))
+```
+\hfill
+```{r, echo=FALSE}
+predict_air <- predict(celsius_air_glm_final, newdata= climate)
+climate$predict_air_Density <- predict_air
+
+ggplot(data = climate, mapping = aes(x= Celsius, y = predict_air_Density))+ 
+  geom_point()
+```
+
+To further validate our models, we use the predict() function as well. The predicted vs actual plot has shown a positive linear regression with each most point consistent in predicted and actual values such as we can see x-axis as Celsius and y-axis as the predicted variable. The most data are having x = y in there relative coefficient. indicating a good performance of our fitted data. On the other hand, we can still see some of the points does not followed the predicted line as outliers occur. This indicates there exists some error or bias either in data or our methods. Therefore, we will do a residual analysis in the following section.
+
+## Additional: Analyzing the Outliers 
+
+**As mentioned by the professor in our presentation, we thought it may be interesting to take a closer look at outliers in our visual.  Our graph showed that there was a strong linear relationship. However, there were some outliers present in the graph. Potential reasons for the outliers could be due to measurement errors or data entry mistakes. However since there are only a few outliers we think that since climate can be unpredictable at times it could be a result of a extreme event. As such a unpredictable whether occurence could have contributed to this outlier from the rest of the linear plot.**
+
+## Conclusion and Discussion
+
+**Through the analysis of various environmental factors and their relationships with temperature in Celsius, we have gained valuable insights into the dataset. This conclusion summarizes the findings from the data visualizations, correlation analysis, and model selection process.**
+
+
+**The data visualizations revealed interesting relationships between temperature and different environmental factors. Air density exhibited a strong negative correlation with temperature, indicating that as temperature increases, air density decreases. Relative humidity showed a moderate negative correlation with temperature, suggesting that as temperature rises, relative humidity tends to decrease. On the other hand, vapor pressure exhibited a strong positive correlation with temperature, meaning that higher temperatures are associated with increased vapor pressure.**
+
+
+**In contrast, wind speed, wind direction, and pressure showed no significant relationships with temperature. These factors displayed correlation values close to zero, indicating no clear linear associations. These findings suggest that temperature is primarily influenced by air density, relative humidity, and vapor pressure, while wind speed, wind direction, and pressure play a lesser role in determining temperature.**
+
+
+**Based on the model selection process, we explored the predictive power of various models to estimate Celsius. The initial full model for predicting Celsius using wind speed and other factors yielded a high R-squared value of 0.9937, indicating a strong fit between the predictors and the response variable. Through backward selection, it was determined that the final model for Celsius prediction based on wind speed includes the main effect of wind direction and its interactions with other variables such as air density, relative humidity, saturation vapor pressure, vapor pressure, specific humidity, water vapor concentration, and wind speed.**
+
+
+**Additionally, we constructed models to predict Celsius using air density alone and all available environmental factors. The model with air density alone included interactions with other variables and demonstrated a high R-squared value. However, the model incorporating all environmental factors achieved a perfect fit with an R-squared value of 1, suggesting overfitting. To address this issue, we created a final model by removing insignificant predictors and wind speed, resulting in a more realistic representation of the relationship between environmental factors and Celsius.**
+
+
+**Furthermore, we explored the relationship between wind direction and other environmental factors. The model selection process, using forward selection, revealed that all available predictors (excluding time data) and their interactions with wind direction were significant in explaining the variation in wind direction.**
+
+
+**In conclusion, this analysis has provided insights into the relationships between temperature and various environmental factors. The selected models have shown predictive power, with high R-squared values and significant predictors. However, it is important to note that the final model selection should consider the trade-off between model complexity and interpretability.**
+
+
+**Further evaluation and validation of the selected models are recommended to assess their performance and generalizability. These findings contribute to our understanding of the factors influencing temperature and can have implications for future temperature predictions and related studies.**
+
+
+## Authors' contributions:
+
+*Anushka Pandya: Model Validations, Checking, Final Report* 
+
+*Neha Mathews: EDA, Visualizations, Outlier Analysis, Final Report *
+
+*Haijun Xi: Model Selection, Model Fitting, Final Report *
+
+*Akash Alamuthu: Conclusion, Proofreading,Final Report *
+
+*Jeric Pascua: Introduction, Proofreading,Final Report *
+
+
+## Data/Code availability: The link to the kaggle website is: 
+
+**https://www.kaggle.com/datasets/mnassrib/jena-climate/versions/1?resource=download# **
